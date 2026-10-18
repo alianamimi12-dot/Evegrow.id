@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Logo from "./Logo";
 import { useSession, signOut, FREE_PRODUCT_LIMIT } from "@/lib/db";
-
+import { SIDEBAR_GROUPS, SIDEBAR_OPTIONS } from "@/lib/sidebar";
+ 
 const ICONS = {
   home: "M3 11l9-8 9 8M5 10v10h14V10",
   box: "M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8",
@@ -22,13 +23,8 @@ const ICONS = {
 const Ico = ({ n }) => (
   <svg className="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICONS[n]} /></svg>
 );
-
-const GROUPS = [
-  ["Utama", [["/dashboard", "Ringkasan", "home"], ["/dashboard/produk", "Produk", "box"], ["/dashboard/pesanan", "Pesanan", "receipt"]]],
-  ["Pembayaran", [["/dashboard/konfirmasi", "Mode Admin", "shield"], ["/dashboard/saldo", "Penarikan", "wallet"]]],
-  ["Toko", [["/dashboard/toko", "Pengaturan toko", "store"], ["/dashboard/statistik", "Statistik", "chart"], ["/dashboard/paket", "Paket", "crown"]]],
-];
-
+ 
+ 
 export function Problem({ error }) {
   return (
     <div className="authwrap"><div className="authbox">
@@ -42,18 +38,18 @@ export function Problem({ error }) {
     </div></div>
   );
 }
-
+ 
 export default function DashShell({ title, subtitle, children, actions }) {
   const s = useSession("seller");
   const path = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(SIDEBAR_OPTIONS.defaultCollapsed);
   const [open, setOpen] = useState(false);
-
-  useEffect(() => { try { setCollapsed(localStorage.getItem("ev_side") === "1"); } catch {} }, []);
+ 
+  useEffect(() => { try { const v = localStorage.getItem("ev_side"); if (v !== null) setCollapsed(v === "1"); } catch {} }, []);
   useEffect(() => { setOpen(false); }, [path]);
   const toggle = () => setCollapsed((c) => { try { localStorage.setItem("ev_side", c ? "0" : "1"); } catch {} return !c; });
-
+ 
   if (s.error) return <Problem error={s.error} />;
   if (!s.ready) return <div className="main muted">Memuat…</div>;
   const out = async () => { await signOut(); router.push("/"); };
@@ -61,7 +57,7 @@ export default function DashShell({ title, subtitle, children, actions }) {
   const waiting = s.db.orders.filter((o) => o.paymentMode === "manual" && o.status === "pending" && o.proofPath).length;
   const pro = s.user.plan === "pro";
   const used = s.db.products.length;
-
+ 
   return (
     <div className={"shell" + (collapsed ? " col" : "")}>
       <aside className={"side" + (open ? " open" : "")} aria-label="Menu utama">
@@ -70,10 +66,10 @@ export default function DashShell({ title, subtitle, children, actions }) {
           <button className="iconbtn deskonly" onClick={toggle} aria-label={collapsed ? "Perluas sidebar" : "Ciutkan sidebar"} title={collapsed ? "Perluas" : "Ciutkan"}><span style={{ display: "inline-flex", transform: collapsed ? "rotate(180deg)" : "none" }}><Ico n="chev" /></span></button>
           <button className="iconbtn mobonly2" onClick={() => setOpen(false)} aria-label="Tutup menu"><Ico n="close" /></button>
         </div>
-        {GROUPS.map(([g, items]) => (
+        {SIDEBAR_GROUPS.map(({ title: g, items }) => (
           <div key={g}>
             <div className="grp">{g}</div>
-            {items.map(([h, l, ic]) => (
+            {items.map(({ href: h, label: l, icon: ic }) => (
               <Link key={h} href={h} className={"nav" + (on(h) ? " on" : "")} title={l} aria-current={on(h) ? "page" : undefined}>
                 <Ico n={ic} /><span className="lbl">{l}</span>
                 {h === "/dashboard/konfirmasi" && waiting > 0 && <span className="navbadge" aria-label={`${waiting} menunggu konfirmasi`}>{waiting}</span>}
@@ -82,10 +78,10 @@ export default function DashShell({ title, subtitle, children, actions }) {
           </div>
         ))}
         <div className="sidefoot">
-          <Link href="/dashboard/paket" className="planbox" title="Lihat paket">
+          {SIDEBAR_OPTIONS.showPlanBox && <Link href="/dashboard/paket" className="planbox" title="Lihat paket">
             <div className="txt"><b>{s.user.name}</b><br /><span>Paket {pro ? "Pro" : "Free"}{!pro && ` · ${used}/${FREE_PRODUCT_LIMIT} produk`}</span></div>
             <span className="lbl-ico"><Ico n="crown" /></span>
-          </Link>
+          </Link>}
           <button className="btn btn-ghost btn-sm btn-block sideout" onClick={out}><Ico n="out" /><span className="lbl">Keluar</span></button>
         </div>
       </aside>
